@@ -1,0 +1,45 @@
+
+step 1 :  Login to your ubuntu system the and run following commands
+
+Add the mosquitto repository by given below commands
+
+	$sudo apt-add-repository ppa:mosquitto-dev/mosquitto-ppa
+	
+	$sudo apt-get update
+
+step 2 : Execute the given below command to install the Mosquitto broker package.
+
+	$sudo apt-get install mosquitto
+
+step 3 : Install Mosquitto developer libraries to develop MQTT clients
+
+	$sudo apt-get install libmosquitto-dev
+
+step 4 : Execute the given below command to install Mosquitto client packages.
+
+	$sudo apt-get install mosquitto-clients
+
+step 5 : Ensure the Mosquitto broker is running
+
+	$sudo service mosquitto status 
+
+step 6 : Testing 
+	
+	open a terminal and enter given command
+		$mosquitto_sub -h localhost -t "mqtt" -v
+	open another terminal enter the given command
+		$mosquitto_pub -h localhost -t "mqtt" -m "Hello MQTT"
+
+Configuring Mosquitto to support web socket connections
+
+step 7 : Open /etc/mosquitto/mosquitto.conf and add the following lines at the bottom of the file.
+
+	port 1883
+	listener 9001
+	protocol websockets
+
+step 8 : Then restart the Mosquitto
+		$ sudo service mosquitto restart
+
+
+
