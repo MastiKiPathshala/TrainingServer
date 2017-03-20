@@ -1,9 +1,9 @@
 // parking.js
+var mqtt = require('mqtt');
 var async = require('async');
 var redis = require('redis');
 
-//var r1     = redis.create();
-//var r2     = redis.createClient();
+
 var client = redis.createClient();
 var index,median;
 
@@ -15,9 +15,11 @@ var thu = [];
 var fri = [];
 var sat = [];
 var sun = [];
+var short_days = ["sun","mon","tue","wed","thu","fri","sat"];
+var days = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
 const LOTS          = 1; //total parking lots
-const PARKING_SLOTS = 50; // slots per parking lot
+const PARKING_SLOTS = 51; // 50 slots per parking lot
 const TIME_SLOTS    = 12;  // 2hr time slots for 24hrs
 const INTERVAL      = 31*24*60* 60 *1000;  //for ltrim of medians
 const AVG_CARS_PM   = 500 *30 ; //per month per lot?
@@ -50,34 +52,10 @@ function initialize_arrays(arr)
 {
   for(var i=0;i<TIME_SLOTS;i++)
  {  arr[i]=[];
-    for(var j=0;j<LOTS;j++)
+    for(var j=0;j<=LOTS;j++)
       arr[i][j]=[];
   }
 }
-
-
-/*r1.on("subscribe", function(channel, count) {
-    console.log("Subscribed to " + channel );
-});
-
-r1.subscribe("parking");
-
-r2.publish("parking",JSON.stringify({"lot": 1,"id":5,"status":1,"day" :"Monday","time" :"0.5"}));
-
-setInterval(function()
-{r2.publish("parking",JSON.stringify({"lot": 1,"id":5,"status":1,"day" :"Monday","time" :"1.5"}));
-r2.publish("parking",JSON.stringify({"lot": 2,"id":4,"status":0,"day" :"Monday","time" :"3.5"}));
-r2.publish("parking",JSON.stringify({"lot": 1,"id":2,"status":1,"day" :"Monday","time" :"3"}));
-}, 12000);
-
-setInterval(function()
-{r2.publish("parking",JSON.stringify({"lot": 1,"id":5,"status":0,"day" :"Monday","time" :"2"}));
-r2.publish("parking",JSON.stringify({"lot": 2,"id":4,"status":1,"day" :"Monday","time" :"3"}));
-r2.publish("parking",JSON.stringify({"lot": 2,"id":2,"status":1,"day" :"Monday","time" :"2"}));
-
-}, 11000);
-*/
-var mqtt = require('mqtt');
   
 var options = {
   port :1883,
@@ -86,139 +64,290 @@ var options = {
   password: 'ksM9gH5hxhkb'
 };
 var r1 = mqtt.connect('mqtt://162.242.215.7',options)
-
+var r2 = mqtt.connect('mqtt://162.242.215.7',options)
 
 r1.on('connect', function() { 
   console.log("Mqtt connected") 
-  r1.subscribe('parkingstatus-req',function(){
-  r1.on('message', function(topic, message, packet) {
-      console.log("Received '" + message + "' on '" + topic + "'");
-    });
+   r1.subscribe('parkingstatus-resp',function(){
 });
+})
+r1.on('connect', function() { 
+   r2.subscribe('wait_time_req');
+   r2.on("message",function(channel, message) 
+   { console.log(message);
+   	var obj=JSON.parse(message);
+    console.log("Message from channel " + channel +"  Requester : "+obj.Requester+"  Timestamp: " +obj.Timestamp +"  Userid : "+obj.Userid);
 
+     var lot =0;
+     var t= obj.Timestamp.split(" ")[1];
+     var time=+parseFloat(t.split(":")[0]) + +parseFloat(t.split(":")[1]/60).toFixed(2);
+     var date= obj.Timestamp.split(" ")[0];
+     var d = new Date(date);
+     var day =short_days[d.getDay()];
+     //var key = lot+name +'0';
+      if(time >= 0 && time <= 2)
+            { var key = lot+day+'0';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>2  && time <= 4)
+            { var key = lot+name +'1';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>4  && time <= 6)
+            { var key = lot+day +'2';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>6  && time <= 8)
+            {var key = lot+day +'3';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>8  && time <= 10)
+            { var key = lot+day +'4';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>10  && time <= 12)
+            { var key = lot+day+'5';
+              calculate_median(key,'med_'+key);
+
+            }
+            else if (time>12  && time <= 14)
+              { var key = lot+day +'6';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>14  && time <= 16)
+             { var key = lot+day +'7';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>16  && time <= 18)
+            { var key = lot+day +'8';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>18  && time <= 20)
+              { var key = lot+day +'9';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>20  && time <= 22)
+              { var key =lot+ day +'10';
+              calculate_median(key,'med_'+key);
+            }
+            else if (time>22  && time <= 24)
+              { var key = lot+day +'11';
+              calculate_median(key,'med_'+key);
+            }
+            
+     console.log("DAY  "+day+"   TIME  "+time);
+     switch(day){
+    case 'mon'   :
+              earliest_time(mon,'mon',time,lot,obj.Userid,function(id){
+              var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
+              r2.publish('wait_time_resp',msg);
+              console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+          });
+            break;
+    case 'tue'  : 
+              earliest_time(tue,'tue',time,lot,Userid,function(id){
+              r2.publish('wait_time_resp',JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+          });
+            break;
+    case 'wed': 
+              earliest_time(wed,'wed',time,lot,Userid,function(id){
+              r2.publish('wait_time_resp',JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+          });
+            break;
+    case 'thu' :
+             earliest_time(thu,'thu',time,lot,Userid,function(id){
+              r2.publish('wait_time_resp',JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+          });
+            break;
+    case 'fri'   : 
+             earliest_time(fri,'fri',time,lot,Userid,function(id){
+              r2.publish('wait_time_resp',JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+          });
+            break;
+    case 'sat' : 
+              earliest_time(sat,'sat',time,lot,Userid,function(id){
+              r2.publish('wait_time_resp',JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+          });
+            break;
+    case 'sun'   : 
+              earliest_time(sun,'sun',time,lot,Userid,function(id){
+              r2.publish('wait_time_resp',JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+          });
+            break;
+    default         : 
+            break;
+          }  
+
+    
+  });
+     
+  
 })
 
-  r1.on("message", function(channel, message) 
-  { console.log("Message" +message);
-  var obj=JSON.parse(message);
-  console.log("Message from channel " + channel + ": LOT : " +obj.lot+" id: " +obj.id + " status:  " +obj.status+" day: " +obj.day +" time : "+obj.time );
 
-  var lot=obj.lot;
-  var id=obj.id;
-  var status=obj.status;
-  var time=obj.time;
-  var day = obj.day;
+  r1.on("message", function(channel, message) 
+  { console.log("Message" +message);      //{"parking_id":"4","parking_status":"1","car_parkingtime":"2017-03-09 15:40:00"}
+    var obj=JSON.parse(message);
+    console.log("Message from channel " + channel +" id: " +obj.parking_id + " status:  " +obj.parking_status+" time : "+obj.car_parkingtime );
+
+  //var lot=obj.lot;
+  var lot =0;
+  var id=obj.parking_id;
+  var status=obj.parking_status;
+  if(status==1){
+        var t= obj.car_parkingtime.split(" ")[1];
+        var time=+parseFloat(t.split(":")[0]) + +parseFloat(t.split(":")[1]/60).toFixed(2);
+        var date= obj.car_parkingtime.split(" ")[0];
+        var d = new Date(date);
+        var day =days[d.getDay()];
+        var x=0;
+        console.log("DAY  "+day+"   TIME  "+time);
+
+    }
+
+else{
+
+      var t= obj.car_parkingtime.split(" ")[1];
+      var time=+parseFloat(t.split(":")[0]) + +parseFloat(t.split(":")[1]/60).toFixed(2);
+      var date= obj.car_parkingtime.split(" ")[0];
+      var d = new Date(date);
+      var day =days[d.getDay()];
+      var x=obj.total_parkingtime;
+      console.log("DAY  "+day+"   TIME  "+time);
+
+
+    }
 //client.on('message', function(topic, message) {  
   
-  	switch(day){
-  	case 'Monday'   : time_division(mon,'mon',sun,'sun',status,time,id,lot);
-  					break;
-  	case 'Tuesday'  : time_division(tue,'tue',mon,'mon',status,time,id,lot);
-  					break;
-  	case 'Wednesday': time_division(wed,'wed',tue,'tue',status,time,id,lot);
-  					break;
-    case 'Thursday' : time_division(thu,'thu',wed,'wed',status,time,id,lot);
-  					break;
-  	case 'Friday'   : time_division(fri,'fri',thu,'thu',status,time,id,lot);
-  					break;
-  	case 'Saturday' : time_division(sat,'sat',fri,'fri',status,time,id,lot);
-  					break;
-  	case 'Sunday'   : time_division(sun,'sun',sat,'sat',status,time,id,lot);
-  					break;
-  	default 	      : 
+    switch(day){
+    case 'Monday'   : time_division(mon,'mon',sun,'sun',status,time,id,lot,x);
             break;
-  				}  
+    case 'Tuesday'  : time_division(tue,'tue',mon,'mon',status,time,id,lot,x);
+            break;
+    case 'Wednesday': time_division(wed,'wed',tue,'tue',status,time,id,lot,x);
+            break;
+    case 'Thursday' : time_division(thu,'thu',wed,'wed',status,time,id,lot,x);
+            break;
+    case 'Friday'   : time_division(fri,'fri',thu,'thu',status,time,id,lot,x);
+            break;
+    case 'Saturday' : time_division(sat,'sat',fri,'fri',status,time,id,lot,x);
+            break;
+    case 'Sunday'   : time_division(sun,'sun',sat,'sat',status,time,id,lot,x);
+            break;
+    default         : 
+            break;
+          }  
   });
-
-function time_division(day,name,prev,prev_name,status,time,id,lot)
+/*setTimeout(function(){
+  var key = '0mon2';
+  calculate_median(key,'med_'+key);
+},120000);
+setTimeout(function(){
+  earliest_time(mon,'mon',5.8,0,'uid',function(id)
+  	{
+  		console.log("EARLIEST : "+id);
+  	});
+ 
+ 
+//{"Requester": "Analytics","Userid":"asdfj-3r687236-3jka-323","parking_id" : "4" , "wait_time" : "2"}
+},130000);*/
+function time_division(day,name,prev,prev_name,status,time,id,lot,x)
   {  
     if (status == 1){
             if(time >= 0 && time <= 2)
             { var key = lot+prev_name +'11';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[0][lot][id]=time;
               //console.log("DAY "   +day+ "  "+name);
             }
             else if (time>2  && time <= 4)
             { var key = lot+name +'0';
-              calculate_median(key,'med_'+key);
-              earliest_time(day,'mon',time,lot);  //calculating earliest & wait time
+              //calculate_median(key,'med_'+key);
+              //earliest_time(day,'mon',time,lot);  //calculating earliest & wait time
               //console.log("DAY "   +day+ "  "+key);
               day[1][lot][id]=time;
             }
             else if (time>4  && time <= 6)
             { var key = lot+day +'1';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[2][lot][id]=time;
             }
             else if (time>6  && time <= 8)
             {var key = lot+day +'2';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[3][lot][id]=time;
             }
             else if (time>8  && time <= 10)
             { var key = lot+day +'3';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[4][lot][id]=time;
+               //console.log("REDIS KEY :-> "+key);
             }
             else if (time>10  && time <= 12)
-            { var key = lot+day +'4';
-              calculate_median(key,'med_'+key);
+            { var key = lot+name+'4';
+              //calculate_median(key,'med_'+key);
               day[5][lot][id]=time;
+              //console.log("REDIS KEY :-> "+key);
+
             }
             else if (time>12  && time <= 14)
               { var key = lot+day +'5';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[6][lot][id]=time;
             }
             else if (time>14  && time <= 16)
              { var key = lot+day +'6';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[7][lot][id]=time;
             }
             else if (time>16  && time <= 18)
             { var key = lot+day +'7';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[8][lot][id]=time;
             }
             else if (time>18  && time <= 20)
               { var key = lot+day +'8';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[9][lot][id]=time;
             }
             else if (time>20  && time <= 22)
               { var key =lot+ day +'9';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[10][lot][id]=time;
             }
             else if (time>22  && time <= 24)
               { var key = lot+day +'10';
-              calculate_median(key,'med_'+key);
+              //calculate_median(key,'med_'+key);
               day[11][lot][id]=time;
             }
+            
           
           }
           else
           { //check for previous day
+            console.log("STATUS===0");
             for(var j=11;j>=0;j--)
             {
               if(prev[j][lot][id]!=null)
               {
                 var key = lot+prev_name+i;
                 client.lpush(key,time-prev[j][lot][id], function (err, res) {console.log("REDIS lpush in :  " +key+" : "+res);
+                //client.lpush(key,time, function (err, res) {console.log("REDIS lpush in :  " +key+" : "+res);
                 //console.log("Printing array day : " +prev);
                 prev[j][lot][id]=null; });
                 break;
               }
             
               if(j==0){ //then, check for current day
+                console.log("j===0");
             for(var i=Math.floor(time/2);i>=0;i--)
-            { 
+            {  //console.log("INSIDE for");
            
               if(day[i][lot][id]!=null)
-              {
+              {  //console.log("Inside if");
                 var key = lot+name+i;
-                client.lpush(key,time-day[i][lot][id], function (err, res) {console.log("REDIS lpush in :  " +key+" : "+res);
+                //client.lpush(key,time-day[i][lot][id], function (err, res) {console.log("REDIS lpush in :  " +key+" : "+res);
+                client.lpush(key,x, function (err, res) {console.log("REDIS lpush in :  " +key+" : "+res);
                 //console.log("Printing array day : " +day);
                 day[i][lot][id]=null; });
                 break;
@@ -228,9 +357,10 @@ function time_division(day,name,prev,prev_name,status,time,id,lot)
             }
           }
   }
+}
 
 function calculate_median (key,list_name) {
-  //list_name = med_mon0, med_tue1,etc
+  //list_name = med_1mon0, med_1tue1,etc
 
       client.sort(key, function(err, reply) {
                if(reply!='') {
@@ -259,15 +389,15 @@ function calculate_median (key,list_name) {
 
 
 }
-}
 
-function earliest_time(arr,name,time,lot)
-{ var i=0;
-  var x,array;
+function earliest_time(arr,name,time,lot,uid,cb)
+{ var i=0,index;
+  var x,array,wait;
+  var send=[];
   while(i<=11)
   {
-    if(arr[i][lot]!=null)
-   { 
+    if(arr[i][lot]!='')
+   { console.log("entered i= "+i);
     async.series([
     function(callback) {
         array=arr;
@@ -276,12 +406,17 @@ function earliest_time(arr,name,time,lot)
     
     function(callback) {
         x=array[i][lot].slice().sort(function(a,b){return a-b;});
+        x=x.filter(function(e){ return e === 0 || e });
+        console.log("Earliest time array sorted x= "+x+" arr  "+array[i][lot]);
+        send.push(uid);
         callback(null);
     },
     
     function(callback) {
-        var index = arr[i][lot].indexOf(x[0]) ; 
+ 
+        index = arr[i][lot].indexOf(x[0]) ; 
         console.log("Earliest time for LOT: " +lot+ " is : "+x[0]+ "   at parking id : "+index);
+        send.push(index);
         callback(null);
     },
 
@@ -289,13 +424,19 @@ function earliest_time(arr,name,time,lot)
       //expected wait time
         var key = "med_"+lot+name+i;
         client.lindex(key,0,function(err,reply)
-   {    var wait = parseFloat(reply -time) + parseFloat(x[0]);
-        console.log("Expected wait time : " +wait.toFixed(2));
+   {    wait = (parseFloat(reply/60 -time) + parseFloat(x[0]))*60;
+        console.log("Expected wait time : " +wait);
+        send.push(wait);
+
+        cb(send);
+
    })
         callback(null);
     }
     ],
   function(err, results) {
+  	
+
   });
     
      break;  
@@ -304,6 +445,7 @@ function earliest_time(arr,name,time,lot)
   else 
     i++;
 }
+
 
 }
 
