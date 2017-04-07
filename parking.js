@@ -8,6 +8,7 @@ var client = redis.createClient();
 var index,median;
 
 //arrays storing coming-in time. length of subarrays= no. of parking lots
+var lots =[];
 var mon = [];
 var tue = [];
 var wed = [];
@@ -18,7 +19,7 @@ var sun = [];
 var short_days = ["sun","mon","tue","wed","thu","fri","sat"];
 var days       = ["Sunday","Monday","Tuesday","Wednesday","Thursday","Friday","Saturday"];
 
-const LOTS          = 1; //total parking lots
+const PARKING_LOTS  = 25; //total parking lots
 const PARKING_SLOTS = 50; // 50 slots per parking lot
 const TIME_SLOTS    = 12;  // 2hr time slots for 24hrs
 const INTERVAL      = 31*24*60* 60 *1000;  //for ltrim of medians
@@ -52,7 +53,7 @@ function initialize_arrays(arr)
 {
   for(var i=0;i<TIME_SLOTS;i++)
  {  arr[i]=[];
-    for(var j=0;j<=LOTS;j++)
+    for(var j=0;j<=PARKING_LOTS;j++)
       arr[i][j]=[];
   }
 }
@@ -60,11 +61,9 @@ function initialize_arrays(arr)
 var options = {
   port :1883,
   keepalive: 60,
-  username: 'root',
-  password: 'ksM9gH5hxhkb'
 };
 
-var r1 = mqtt.connect('mqtt://162.242.215.7',options)
+var r1 = mqtt.connect('mqtt://localhost',options)
 
 r1.on('connect', function() 
 { 
@@ -74,15 +73,15 @@ r1.on('connect', function()
 })
 
   r1.on("message", function(channel, message) 
-  { console.log("Message" +message);      //{"Requester":"Device","parking_id":"4","parking_status":"1","car_parkingtime":"2017-03-09 15:40:00"}
+  { //console.log("Message" +message);      //{"Requester":"Device","parking_id":"4","parking_status":"1","car_parkingtime":"2017-03-09 15:40:00"}
     var obj=JSON.parse(message);
     
     if(obj.Requester=="Device")
     {
-    console.log("Message from channel " + channel +" id: " +obj.parking_id + " status:  " +obj.parking_status+" time : "+obj.car_parkingtime );
-
+    console.log("Message from channel " + channel +" id: " +obj.parking_id + " status:  " +obj.parking_status+" time : "+obj.car_parkingtime +" LOT:"+obj.parking_lot_id);
+    lots.push(obj.parking_lot_id);
   //var lot=obj.lot;
-	var lot =0;
+	var lot =lots.indexOf(obj.parking_lot_id);
   	var id=obj.parking_id;
   	var status=obj.parking_status;
   	if(status==1)
@@ -137,9 +136,9 @@ else{
 
           if(obj.Requester=="APP")
           {
-            console.log("Message from channel " + channel +"  Requester : "+obj.Requester+"  Timestamp: " +obj.Timestamp +"  Userid : "+obj.Userid);
+            console.log("Message from channel " + channel +"  Requester : "+obj.Requester+"  Timestamp: " +obj.Timestamp +"  Userid : "+obj.Userid+"LOT: "+obj.parking_lot_id);
 
-     		var lot =0;
+     		var lot =lots.indexOf(obj.parking_lot_id);
      		var t= obj.Timestamp.split(" ")[1];
      		var time=+parseFloat(t.split(":")[0]) + +parseFloat(t.split(":")[1]/60).toFixed(2);
      		var date= obj.Timestamp.split(" ")[0];
@@ -217,7 +216,7 @@ else{
               				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
               				r1.publish('wait_time_resp',msg);
-              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
     		case 'tue'  : 
@@ -225,7 +224,7 @@ else{
              				 {
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
               				r1.publish('wait_time_resp',msg);
-              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
            					 break;
     		case 'wed': 
@@ -233,7 +232,7 @@ else{
               				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
               				r1.publish('wait_time_resp',msg);
-              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
     		case 'thu' :
@@ -241,7 +240,7 @@ else{
             				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
               				r1.publish('wait_time_resp',msg);
-             				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+             				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
     		case 'fri'   : 
@@ -249,7 +248,7 @@ else{
              				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
               				r1.publish('wait_time_resp',msg);
-              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
    		 	case 'sat' : 
@@ -257,7 +256,7 @@ else{
               				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
               				r1.publish('wait_time_resp',msg);
-              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
     		case 'sun'   : 
@@ -265,7 +264,7 @@ else{
               				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
               				r1.publish('wait_time_resp',msg);
-              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
+              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
     		default         : 
