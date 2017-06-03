@@ -3,7 +3,6 @@ var mqtt  = require('mqtt');
 var async = require('async');
 var redis = require('redis');
 
-
 var client = redis.createClient();
 var index,median;
 
@@ -51,41 +50,38 @@ function setTimeout_ (fn, delay) {
 
 function initialize_arrays(arr)
 {
-  for(var i=0;i<TIME_SLOTS;i++)
- {  arr[i]=[];
-    for(var j=0;j<=PARKING_LOTS;j++)
-      arr[i][j]=[];
-  }
+	for(var i=0;i<TIME_SLOTS;i++) {  
+		arr[i]=[];
+		for (var j = 0; j <= PARKING_LOTS; j++) {
+			arr[i][j]=[];
+		}
+	}
 }
   
 var options = {
-  port :1883,
-  keepalive: 60,
+	port :1883,
+	keepalive: 60,
 };
 
-var r1 = mqtt.connect('mqtt://localhost',options)
+var messageBroker = mqtt.connect('mqtt://localhost',options)
 
-r1.on('connect', function() 
-{ 
-   console.log("Mqtt Connected!") 
-   r1.subscribe('parkingstatus-resp');
-   r1.subscribe('wait_time_req');
-})
+messageBroker.on('connect', function() { 
+	console.log("Mqtt Connected!") 
+	messageBroker.subscribe('parkingstatus-resp');
+	messageBroker.subscribe('wait_time_req');
+});
 
-  r1.on("message", function(channel, message) 
-  { //console.log("Message" +message);      //{"Requester":"Device","parking_id":"4","parking_status":"1","car_parkingtime":"2017-03-09 15:40:00"}
+messageBroker.on("message", function(channel, message) {
     var obj=JSON.parse(message);
     
-    if(obj.Requester=="Device")
-    {
-    console.log("Message from channel " + channel +" id: " +obj.parking_id + " status:  " +obj.parking_status+" time : "+obj.car_parkingtime +" LOT:"+obj.parking_lot_id);
+	if (obj.Requester == "Device") {
+		console.log("Message from channel " + channel +" id: " +obj.parking_id + " status:  " +obj.parking_status+" time : "+obj.car_parkingtime +" LOT:"+obj.parking_lot_id);
     lots.push(obj.parking_lot_id);
   //var lot=obj.lot;
 	var lot =lots.indexOf(obj.parking_lot_id);
   	var id=obj.parking_id;
   	var status=obj.parking_status;
-  	if(status==1)
-  {
+		if (status == 1) {
         var t= obj.car_parkingtime.split(" ")[1];
         var time=+parseFloat(t.split(":")[0]) + +parseFloat(t.split(":")[1]/60).toFixed(2);
         var date= obj.car_parkingtime.split(" ")[0];
@@ -95,9 +91,7 @@ r1.on('connect', function()
         
         console.log("DAY  "+day+"   TIME  "+time);
 
-    }
-
-else{
+    	} else{
 
       var t= obj.car_parkingtime.split(" ")[1];
       var time=+parseFloat(t.split(":")[0]) + +parseFloat(t.split(":")[1]/60).toFixed(2);
@@ -107,12 +101,9 @@ else{
       var x=obj.total_parkingtime;
       
       console.log("DAY  "+day+"   TIME  "+time);
-
-
-    }
+    	}
   
-    switch(day)
-    {
+    	switch(day) {
     case 'Monday'   : time_division(mon,'mon',sun,'sun',status,time,id,lot,x);
             break;
     case 'Tuesday'  : time_division(tue,'tue',mon,'mon',status,time,id,lot,x);
@@ -129,16 +120,19 @@ else{
             break;
     default         : 
             break;
-          }
-          
-        }  
+		}
+	}
 
+	if(obj.Requester=="APP") {
+		console.log("Message from channel " + channel +"  Requester : "+obj.Requester+"  Timestamp: " +obj.Timestamp +"  Userid : "+obj.Userid+"LOT: "+obj.parking_lot_id);
+     	var lot = lots.indexOf(obj.parking_lot_id);
 
-          if(obj.Requester=="APP")
-          {
-            console.log("Message from channel " + channel +"  Requester : "+obj.Requester+"  Timestamp: " +obj.Timestamp +"  Userid : "+obj.Userid+"LOT: "+obj.parking_lot_id);
+		if (lot == -1) {
 
-     		var lot =lots.indexOf(obj.parking_lot_id);
+              console.log ("Lot doesn't exist");
+              messageBroker.publish('wait_time_resp',"Lot doesn't exist");
+		} else {
+
      		var t= obj.Timestamp.split(" ")[1];
      		var time=+parseFloat(t.split(":")[0]) + +parseFloat(t.split(":")[1]/60).toFixed(2);
      		var date= obj.Timestamp.split(" ")[0];
@@ -209,13 +203,12 @@ else{
             }
             
      		console.log("DAY  "+day+"   TIME  "+time);
-     	switch(day)
-     	{
+			switch (day) {
    			 case 'mon'   :
               				earliest_time(mon,'mon',time,lot,obj.Userid,function(id)
               				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
-              				r1.publish('wait_time_resp',msg);
+              				messageBroker.publish('wait_time_resp',msg);
               				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
@@ -223,7 +216,7 @@ else{
              				 earliest_time(tue,'tue',time,lot,obj.Userid,function(id)
              				 {
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
-              				r1.publish('wait_time_resp',msg);
+              				messageBroker.publish('wait_time_resp',msg);
               				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
            					 break;
@@ -231,7 +224,7 @@ else{
               				earliest_time(wed,'wed',time,lot,obj.Userid,function(id)
               				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
-              				r1.publish('wait_time_resp',msg);
+              				messageBroker.publish('wait_time_resp',msg);
               				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
@@ -239,7 +232,7 @@ else{
             				earliest_time(thu,'thu',time,lot,obj.Userid,function(id)
             				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
-              				r1.publish('wait_time_resp',msg);
+              				messageBroker.publish('wait_time_resp',msg);
              				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
@@ -247,7 +240,7 @@ else{
              				earliest_time(fri,'fri',time,lot,obj.Userid,function(id)
              				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
-              				r1.publish('wait_time_resp',msg);
+              				messageBroker.publish('wait_time_resp',msg);
               				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
@@ -255,7 +248,7 @@ else{
               				earliest_time(sat,'sat',time,lot,obj.Userid,function(id)
               				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
-              				r1.publish('wait_time_resp',msg);
+              				messageBroker.publish('wait_time_resp',msg);
               				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
@@ -263,17 +256,16 @@ else{
               				earliest_time(sun,'sun',time,lot,obj.Userid,function(id)
               				{
               				var msg=JSON.stringify({"Requester": "Analytics","Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]});
-              				r1.publish('wait_time_resp',msg);
+              				messageBroker.publish('wait_time_resp',msg);
               				console.log("Message Sent : " +JSON.stringify({"Requester": "Analytics","parking_lot_id":lots[lot],"Userid":id[0],"parking_id" : id[1] , "wait_time" : id[2]}));
           });
             				break;
     		default         : 
             				break;
-          }  
-
-     
-          }
-  });
+			}  
+		}
+	}
+});
 
 /*setTimeout(function(){
   var key = '0mon2';
@@ -441,7 +433,7 @@ function calculate_median (key,list_name) {
                 console.log("Median of "+key+ " pushed into  list : median. Value = "+median)
                 })
     })
-    }) 
+    })
     }
     })
 
@@ -449,132 +441,82 @@ function calculate_median (key,list_name) {
 }
 
 function earliest_time(arr,name,time,lot,uid,cb)
-{ var i=0,index;
-  var x,array,wait;
-  var send=[];
-  while(i<=11)
-  {
-    if(arr[i][lot]!='')
-   { console.log("entered i= "+i);
-    async.series([
-    function(callback) 
-    {
-        array=arr;
-        callback(null);
-    },
-    
-    function(callback)
-     {
+{
+	var i=0,index;
+	var x,array,wait;
+	var send=[];
+	while(i<=11) {
+		if(arr[i][lot]!='') {
+			console.log("entered i= "+i);
+			async.series([
+				function(callback) {
+					array=arr;
+					callback(null);
+				},
+
+				function(callback) {
         x=array[i][lot].slice().sort(function(a,b){return a-b;});
         x=x.filter(function(e){ return e === 0 || e });
         console.log("Earliest time array sorted x= "+x+" arr  "+array[i][lot]);
         send.push(uid);
         callback(null);
-    },
-    
-    function(callback) 
-    {
- 
-        index = arr[i][lot].indexOf(x[0]) ; 
+				},
+
+				function(callback) {
+
+        index = arr[i][lot].indexOf(x[0]);
         console.log("Earliest time for LOT: " +lot+ " is : "+x[0]+ "   at parking id : "+index);
         send.push(index);
         callback(null);
-    },
+				},
 
-     function(callback) 
-     {
-      //expected wait time
-        var key = "med_"+lot+name+i;
-        client.lindex(key,0,function(err,reply)
-   {    wait = (parseFloat(reply/60 -time) + parseFloat(x[0]))*60;
-   	    wait=wait.toFixed(2);
-        console.log("Expected wait time : " +wait);
-        send.push(wait);
+				function(callback) {
+					//expected wait time
+					var key = "med_"+lot+name+i;
+					client.lindex(key,0,function(err,reply) {
+						wait = (parseFloat(reply/60 -time) + parseFloat(x[0]))*60;
+						wait=wait.toFixed(2);
+						console.log("Expected wait time : " +wait);
+						send.push(wait);
+						cb(send);
+					})
+					callback(null);
+				}
+			], function(err, results) {
 
-        cb(send);
+			});
+			break;
 
-   })
-        callback(null);
-    }
-    ],
-  function(err, results) 
-  {
-
-  });
-    
-     break;  
-  
-  }
-  else 
-    i++;
+		} else {
+			i++;
+		}
+	}
 }
 
+setTimeout (function() {
+	var day_number=0;
+	if (lots.length > 0)
+		while (day_number < 7) {
+			for(var i=0;i<lots.length;i++) {
+				for(var j=0;j<TIME_SLOTS;j++) {
 
-}
+					var key = "med_"+i+short_days[day_number]+j;
+					redisClient.ltrim (key, 0, AVG_CARS_PM, function(err,done) {
+						if (err) {
+							console.log(err)
+						}
+					});
+				}
+			}
+			day_number++;
+		}
+		console.log("Trimmed lists!");
 
-
-setTimeout(function(){
-  client.ltrim("median",0,AVG_CARS_PM,function(err,done){
-    if(err) console.log(err)
-    else console.log('trimmed list')
-  })
+	client.ltrim("median",0,AVG_CARS_PM,function(err,done){
+		if (err) {
+			console.log(err)
+		} else {
+			console.log('trimmed list')
+		}
+	});
 }, INTERVAL);
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-/*function _function1 (key) {
-    return function (callback) {
-      client.sort(key, function(err, reply) {
-                console.log("REeeeDIS sorted:  " +reply); 
-                }) 
-        var x=5;
-        callback (null,x);
-   }
-}
-function _function2 (x,callback) {
-    return function (callback) {
-     client.llen(key, function(err, reply) {
-                console.log("REeeeDIS llen:  " +reply);
-               var index=reply/2; 
-                })
-       callback (err, index);
-    }
-}
-function _function3 (index, callback) {
-    return function (callback) {
- client.lindex(key, index,function(err, reply) {
-                console.log("REeeDIS lindex:  " +reply);
-               var median = reply;
-                })
-      callback (err,median);
-    }
-}
-function _function4 (median, callback) {
-    return function (callback) {
- client.rpush(key,median,function(err,reply){
-                console.log("Median of "+key+ " pushed into redis. Value = "+median)
-                })
-
-
-      callback (err,'done');
-    }
-}*/
-    
-
-    
-    
-   
-
-
